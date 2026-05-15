@@ -1,0 +1,30 @@
+## IDE
+**/.idea/
+**/.vscode/
+*.iml
+*.ipr
+*.iws
+
+## Backend
+**/target/
+**/logs/
+*.log
+**/avatar/
+
+## Frontend
+**/node_modules/
+**/dist/
+**/.lock
+.env
+.env.*
+.vuepress/dist/
+.yarn/
+yarn.lock
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Maven
+.mvn/
+*.maven.timestamp

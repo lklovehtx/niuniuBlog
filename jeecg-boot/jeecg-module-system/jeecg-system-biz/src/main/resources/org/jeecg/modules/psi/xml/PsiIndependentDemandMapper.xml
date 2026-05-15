@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.psi.mapper.PsiIndependentDemandMapper">
+
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.psi.entity.PsiIndependentDemand">
+        <id column="id" property="id" />
+        <result column="demand_no" property="demandNo" />
+        <result column="company" property="company" />
+        <result column="factory" property="factory" />
+        <result column="supplier_id" property="supplierId" />
+        <result column="supplier_name" property="supplierName" />
+        <result column="customer_id" property="customerId" />
+        <result column="customer_name" property="customerName" />
+        <result column="external_no" property="externalNo" />
+        <result column="demand_status" property="demandStatus" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+        <result column="update_by" property="updateBy" />
+        <result column="update_time" property="updateTime" />
+        <result column="del_flag" property="delFlag" />
+        <result column="remark" property="remark" />
+    </resultMap>
+
+    <resultMap id="ItemResultMap" type="org.jeecg.modules.psi.entity.PsiIndependentDemandItem">
+        <id column="item_id" property="id" />
+        <result column="demand_id" property="demandId" />
+        <result column="demand_no" property="demandNo" />
+        <result column="line_no" property="lineNo" />
+        <result column="material_id" property="materialId" />
+        <result column="material_code" property="materialCode" />
+        <result column="material_name" property="materialName" />
+        <result column="item_factory" property="factory" />
+        <result column="required_qty" property="requiredQty" />
+        <result column="unit" property="unit" />
+        <result column="required_date" property="requiredDate" />
+        <result column="item_status" property="demandStatus" />
+        <result column="item_create_by" property="createBy" />
+        <result column="item_create_time" property="createTime" />
+        <result column="item_update_by" property="updateBy" />
+        <result column="item_update_time" property="updateTime" />
+        <result column="item_del_flag" property="delFlag" />
+    </resultMap>
+
+    <select id="queryPageList" resultMap="BaseResultMap">
+        SELECT * FROM psi_independent_demand
+        WHERE del_flag = '0'
+        <if test="query.demandNo != null and query.demandNo != ''">
+            AND demand_no LIKE CONCAT('%', #{query.demandNo}, '%')
+        </if>
+        <if test="query.company != null and query.company != ''">
+            AND company LIKE CONCAT('%', #{query.company}, '%')
+        </if>
+        <if test="query.supplierName != null and query.supplierName != ''">
+            AND supplier_name LIKE CONCAT('%', #{query.supplierName}, '%')
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="queryById" resultMap="BaseResultMap">
+        SELECT * FROM psi_independent_demand
+        WHERE id = #{id} AND del_flag = '0'
+    </select>
+
+    <select id="queryItemsByDemandId" resultMap="ItemResultMap">
+        SELECT
+            id AS item_id,
+            demand_id,
+            demand_no,
+            line_no,
+            material_id,
+            material_code,
+            material_name,
+            factory AS item_factory,
+            required_qty,
+            unit,
+            required_date,
+            demand_status AS item_status,
+            create_by AS item_create_by,
+            create_time AS item_create_time,
+            update_by AS item_update_by,
+            update_time AS item_update_time,
+            del_flag AS item_del_flag
+        FROM psi_independent_demand_item
+        WHERE demand_id = #{demandId} AND del_flag = '0'
+        ORDER BY line_no ASC
+    </select>
+
+    <delete id="deleteItemsByDemandId">
+        UPDATE psi_independent_demand_item SET del_flag = '1' WHERE demand_id = #{demandId}
+    </delete>
+
+    <insert id="insertItem">
+        INSERT INTO psi_independent_demand_item (
+            id, demand_id, demand_no, line_no, material_id,
+            material_code, material_name, factory, required_qty,
+            unit, required_date, demand_status, create_by, create_time, del_flag
+        ) VALUES (
+            #{id}, #{demandId}, #{demandNo}, #{lineNo}, #{materialId},
+            #{materialCode}, #{materialName}, #{factory}, #{requiredQty},
+            #{unit}, #{requiredDate}, #{demandStatus}, #{createBy}, #{createTime}, '0'
+        )
+    </insert>
+
+    <update id="updateItem">
+        UPDATE psi_independent_demand_item SET
+            line_no = #{lineNo},
+            material_id = #{materialId},
+            material_code = #{materialCode},
+            material_name = #{materialName},
+            factory = #{factory},
+            required_qty = #{requiredQty},
+            unit = #{unit},
+            required_date = #{requiredDate},
+            demand_status = #{demandStatus},
+            update_by = #{updateBy},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <select id="queryListByDemandNo" resultMap="BaseResultMap">
+        SELECT * FROM psi_independent_demand
+        WHERE demand_no = #{demandNo} AND del_flag = '0'
+    </select>
+
+</mapper>

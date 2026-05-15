@@ -1,0 +1,10 @@
+1、mysql5.7 安装配置；
+
+2、使用Navicat连接MySQL；
+
+3、创建数据库，字符集为utf8mb4；
+
+4、依次执行 PSI 初始脚本：
+  psi-mysql-5.7-1.sql(153个表）
+  psi-mysql-5.7-2.sql(11个视图，6个函数）
+

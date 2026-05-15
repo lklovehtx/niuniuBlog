@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.psi.blog.mapper.PsiBlogCommentMapper">
+
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.psi.blog.entity.PsiBlogComment">
+        <id column="id" property="id" />
+        <result column="article_id" property="articleId" />
+        <result column="parent_id" property="parentId" />
+        <result column="content" property="content" />
+        <result column="commentator_id" property="commentatorId" />
+        <result column="commentator_name" property="commentatorName" />
+        <result column="user_avatar" property="commentatorAvatar" />
+        <result column="reply_to_id" property="replyToId" />
+        <result column="reply_to_name" property="replyToName" />
+        <result column="like_count" property="likeCount" />
+        <result column="status" property="status" />
+        <result column="del_flag" property="delFlag" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+        <result column="update_by" property="updateBy" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <select id="queryByArticle" resultMap="BaseResultMap">
+        SELECT c.id,
+               c.article_id,
+               c.parent_id,
+               c.content,
+               c.commentator_id,
+               c.commentator_name,
+               u.avatar as user_avatar,
+               c.reply_to_id,
+               c.reply_to_name,
+               c.like_count,
+               c.status,
+               c.del_flag,
+               c.create_by,
+               c.create_time,
+               c.update_by,
+               c.update_time
+        FROM psi_blog_comment c
+        LEFT JOIN sys_blog_user u ON c.commentator_id = u.id
+        WHERE c.article_id = #{articleId}
+        AND c.del_flag = '0'
+        AND c.status = '1'
+        AND (c.parent_id IS NULL OR c.parent_id = '')
+        ORDER BY c.create_time DESC
+    </select>
+
+    <select id="queryByParentId" resultMap="BaseResultMap">
+        SELECT c.id,
+               c.article_id,
+               c.parent_id,
+               c.content,
+               c.commentator_id,
+               c.commentator_name,
+               u.avatar as user_avatar,
+               c.reply_to_id,
+               c.reply_to_name,
+               c.like_count,
+               c.status,
+               c.del_flag,
+               c.create_by,
+               c.create_time,
+               c.update_by,
+               c.update_time
+        FROM psi_blog_comment c
+        LEFT JOIN sys_blog_user u ON c.commentator_id = u.id
+        WHERE c.parent_id = #{parentId}
+        AND c.del_flag = '0'
+        AND c.status = '1'
+        ORDER BY c.create_time ASC
+    </select>
+
+    <select id="queryRepliesByParentIds" resultMap="BaseResultMap">
+        SELECT c.id,
+               c.article_id,
+               c.parent_id,
+               c.content,
+               c.commentator_id,
+               c.commentator_name,
+               u.avatar as user_avatar,
+               c.reply_to_id,
+               c.reply_to_name,
+               c.like_count,
+               c.status,
+               c.del_flag,
+               c.create_by,
+               c.create_time,
+               c.update_by,
+               c.update_time
+        FROM psi_blog_comment c
+        LEFT JOIN sys_blog_user u ON c.commentator_id = u.id
+        WHERE c.del_flag = '0'
+        AND c.status = '1'
+        AND c.parent_id IN
+        <foreach collection="list" item="parentId" open="(" separator="," close=")">
+            #{parentId}
+        </foreach>
+        ORDER BY c.create_time ASC
+    </select>
+
+    <delete id="deleteByArticleId">
+        UPDATE psi_blog_comment
+        SET del_flag = '1'
+        WHERE article_id = #{articleId}
+    </delete>
+
+</mapper>

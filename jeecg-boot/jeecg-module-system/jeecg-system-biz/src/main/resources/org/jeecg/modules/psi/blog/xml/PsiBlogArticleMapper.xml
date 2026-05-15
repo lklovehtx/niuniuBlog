@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.psi.blog.mapper.PsiBlogArticleMapper">
+
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.psi.blog.entity.PsiBlogArticle">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="summary" property="summary" />
+        <result column="content" property="content" />
+        <result column="cover_image" property="coverImage" />
+        <result column="author_id" property="authorId" />
+        <result column="author_name" property="authorName" />
+        <result column="author_avatar" property="authorAvatar" />
+        <result column="category_id" property="categoryId" />
+        <result column="category_name" property="categoryName" />
+        <result column="tags" property="tags" />
+        <result column="view_count" property="viewCount" />
+        <result column="like_count" property="likeCount" />
+        <result column="comment_count" property="commentCount" />
+        <result column="collect_count" property="collectCount" />
+        <result column="status" property="status" />
+        <result column="is_top" property="isTop" />
+        <result column="is_recommend" property="isRecommend" />
+        <result column="del_flag" property="delFlag" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+        <result column="update_by" property="updateBy" />
+        <result column="update_time" property="updateTime" />
+        <result column="publish_time" property="publishTime" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, title, summary, content, cover_image, author_id, author_name, author_avatar,
+        category_id, category_name, tags, view_count, like_count, comment_count, collect_count,
+        status, is_top, is_recommend, del_flag, create_by, create_time, update_by, update_time, publish_time
+    </sql>
+
+    <select id="queryPageList" resultMap="BaseResultMap">
+        SELECT a.*, u.avatar as author_avatar 
+        FROM psi_blog_article a
+        LEFT JOIN sys_blog_user u ON a.author_id = u.id
+        WHERE a.del_flag = '0'
+        AND a.status = '1'
+        <if test="query != null">
+            <if test="query.title != null and query.title != ''">
+                AND a.title LIKE CONCAT('%', #{query.title}, '%')
+            </if>
+            <if test="query.authorId != null and query.authorId != ''">
+                AND a.author_id = #{query.authorId}
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND a.status = #{query.status}
+            </if>
+            <if test="query.categoryId != null and query.categoryId != ''">
+                AND a.category_id = #{query.categoryId}
+            </if>
+            <!-- 按发布日期筛选（匹配月份和日期） -->
+            <if test="query.publishTime != null">
+                AND MONTH(a.publish_time) = MONTH(#{query.publishTime})
+                AND DAY(a.publish_time) = DAY(#{query.publishTime})
+            </if>
+            <!-- 按题材筛选 -->
+            <if test="query.categoryName != null and query.categoryName != ''">
+                AND a.category_name = #{query.categoryName}
+            </if>
+            <!-- 按主题筛选（模糊匹配标签） -->
+            <if test="query.tags != null and query.tags != ''">
+                AND a.tags LIKE CONCAT('%', #{query.tags}, '%')
+            </if>
+        </if>
+        ORDER BY a.is_top DESC, a.create_time DESC
+    </select>
+
+    <select id="queryByAuthor" resultMap="BaseResultMap">
+        SELECT a.*, u.avatar as author_avatar 
+        FROM psi_blog_article a
+        LEFT JOIN sys_blog_user u ON a.author_id = u.id
+        WHERE a.del_flag = '0'
+        AND a.author_id = #{authorId}
+        ORDER BY a.create_time DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT a.*, u.avatar as author_avatar 
+        FROM psi_blog_article a
+        LEFT JOIN sys_blog_user u ON a.author_id = u.id
+        WHERE a.id = #{id}
+        AND a.del_flag = '0'
+    </select>
+
+    <update id="increaseViewCount">
+        UPDATE psi_blog_article
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <update id="increaseLikeCount">
+        UPDATE psi_blog_article
+        SET like_count = like_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <update id="decreaseLikeCount">
+        UPDATE psi_blog_article
+        SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END
+        WHERE id = #{id}
+    </update>
+
+    <update id="increaseCollectCount">
+        UPDATE psi_blog_article
+        SET collect_count = collect_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <update id="decreaseCollectCount">
+        UPDATE psi_blog_article
+        SET collect_count = CASE WHEN collect_count > 0 THEN collect_count - 1 ELSE 0 END
+        WHERE id = #{id}
+    </update>
+
+    <update id="increaseCommentCount">
+        UPDATE psi_blog_article
+        SET comment_count = comment_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <update id="decreaseCommentCount">
+        UPDATE psi_blog_article
+        SET comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END
+        WHERE id = #{id}
+    </update>
+
+    <select id="sumLikesByAuthor" resultType="int">
+        SELECT COALESCE(SUM(like_count), 0) FROM psi_blog_article
+        WHERE author_id = #{authorId}
+        AND del_flag = '0'
+        AND status = '1'
+    </select>
+
+</mapper>

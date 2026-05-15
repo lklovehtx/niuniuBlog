@@ -1,0 +1,315 @@
+<template>
+  <div class="tech-container">
+    <!-- 顶部：日期选择（左右滑动） -->
+    <div class="wheel-container top-wheel">
+      <div class="wheel" ref="topWheelRef">
+        <div 
+          class="wheel-item"
+          :class="{ active: selectedDate === item }"
+          v-for="item in dateList" 
+          :key="item"
+        >
+          {{ item }}
+        </div>
+      </div>
+      <div class="wheel-indicator"></div>
+    </div>
+
+    <div class="middle-section">
+      <!-- 左侧：题材选择（上下滑动） -->
+      <div class="wheel-container left-wheel">
+        <div class="wheel vertical" ref="leftWheelRef">
+          <div 
+            class="wheel-item"
+            :class="{ active: selectedTopic === item }"
+            v-for="item in topicList" 
+            :key="item"
+          >
+            {{ item }}
+          </div>
+        </div>
+        <div class="wheel-indicator"></div>
+      </div>
+
+      <!-- 中间：结果展示区 -->
+      <div class="center-display">
+        <h2 class="glow-text">当前筛选</h2>
+        <div class="info-card">
+          <p>📅 日期：{{ selectedDate || '请选择日期' }}</p>
+          <p>📚 题材：{{ selectedTopic || '请选择题材' }}</p>
+          <p>📌 主题：{{ selectedTheme || '请选择主题' }}</p>
+          <p>✍️ 作者：{{ selectedAuthor || '请选择作者' }}</p>
+        </div>
+      </div>
+
+      <!-- 右侧：作者选择（上下滑动） -->
+      <div class="wheel-container right-wheel">
+        <div class="wheel vertical" ref="rightWheelRef">
+          <div 
+            class="wheel-item"
+            :class="{ active: selectedAuthor === item }"
+            v-for="item in authorList" 
+            :key="item"
+          >
+            {{ item }}
+          </div>
+        </div>
+        <div class="wheel-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 底部：主题选择（左右滑动） -->
+    <div class="wheel-container bottom-wheel">
+      <div class="wheel" ref="bottomWheelRef">
+        <div 
+          class="wheel-item"
+          :class="{ active: selectedTheme === item }"
+          v-for="item in themeList" 
+          :key="item"
+        >
+          {{ item }}
+        </div>
+      </div>
+      <div class="wheel-indicator"></div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+
+// 模拟数据
+const dateList = ['5/10', '5/11', '5/12', '5/13', '5/14', '5/15', '5/16']
+const topicList = ['玄幻', '科幻', '武侠', '仙侠', '都市']
+const themeList = ['宿命对决', '时空穿越', '秘境探险', '上古秘闻', '科技觉醒']
+const authorList = ['星尘客', '雾隐者', '夜行者', '云中子', '风语者']
+
+// 选中状态
+const selectedDate = ref('')
+const selectedTopic = ref('')
+const selectedTheme = ref('')
+const selectedAuthor = ref('')
+
+// 滚轮DOM引用
+const topWheelRef = ref(null)
+const leftWheelRef = ref(null)
+const rightWheelRef = ref(null)
+const bottomWheelRef = ref(null)
+
+// 通用滚轮滑动逻辑
+const useWheelScroll = (wheelRef, list, selectedRef, isVertical = false) => {
+  let startPos = 0
+  let isDragging = false
+
+  const handleStart = (e) => {
+    isDragging = true
+    startPos = isVertical ? e.touches?.[0]?.clientY || e.clientY : e.touches?.[0]?.clientX || e.clientX
+    wheelRef.value.style.transition = 'none'
+  }
+
+  const handleMove = (e) => {
+    if (!isDragging) return
+    const currentPos = isVertical ? e.touches?.[0]?.clientY || e.clientY : e.touches?.[0]?.clientX || e.clientX
+    const diff = isVertical ? startPos - currentPos : currentPos - startPos
+    wheelRef.value.scrollBy(isVertical ? 0 : diff * 0.5, isVertical ? diff * 0.5 : 0)
+    startPos = currentPos
+  }
+
+  const handleEnd = () => {
+    isDragging = false
+    wheelRef.value.style.transition = 'scroll-behavior 0.3s ease'
+    // 自动对齐到中心项
+    const scrollPos = isVertical ? wheelRef.value.scrollTop : wheelRef.value.scrollLeft
+    const itemSize = isVertical ? 60 : 80
+    const index = Math.round(scrollPos / itemSize)
+    const clampedIndex = Math.max(0, Math.min(index, list.length - 1))
+    wheelRef.value.scrollTo({
+      [isVertical ? 'top' : 'left']: clampedIndex * itemSize,
+      behavior: 'smooth'
+    })
+    selectedRef.value = list[clampedIndex]
+  }
+
+  wheelRef.value?.addEventListener('touchstart', handleStart)
+  wheelRef.value?.addEventListener('touchmove', handleMove)
+  wheelRef.value?.addEventListener('touchend', handleEnd)
+  wheelRef.value?.addEventListener('mousedown', handleStart)
+  wheelRef.value?.addEventListener('mousemove', handleMove)
+  wheelRef.value?.addEventListener('mouseup', handleEnd)
+  wheelRef.value?.addEventListener('mouseleave', handleEnd)
+}
+
+onMounted(() => {
+  // 初始化四个滚轮
+  useWheelScroll(topWheelRef, dateList, selectedDate)
+  useWheelScroll(leftWheelRef, topicList, selectedTopic, true)
+  useWheelScroll(rightWheelRef, authorList, selectedAuthor, true)
+  useWheelScroll(bottomWheelRef, themeList, selectedTheme)
+
+  // 默认选中第一个
+  selectedDate.value = dateList[0]
+  selectedTopic.value = topicList[0]
+  selectedTheme.value = themeList[0]
+  selectedAuthor.value = authorList[0]
+})
+</script>
+
+<style scoped>
+.tech-container {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 科技感背景光效 */
+.tech-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(0, 200, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(150, 0, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.wheel-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* 顶部/底部水平滚轮 */
+.top-wheel, .bottom-wheel {
+  width: 80%;
+  height: 80px;
+  margin: 10px 0;
+}
+
+.wheel {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 20px;
+  height: 100%;
+  align-items: center;
+  gap: 20px;
+}
+
+.wheel::-webkit-scrollbar {
+  display: none;
+}
+
+/* 左右垂直滚轮 */
+.left-wheel, .right-wheel {
+  width: 80px;
+  height: 60vh;
+}
+
+.wheel.vertical {
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px 0;
+  gap: 15px;
+}
+
+.wheel-item {
+  min-width: 80px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  transition: all 0.3s ease;
+  user-select: none;
+  cursor: grab;
+}
+
+.wheel-item:hover {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 200, 255, 0.5);
+}
+
+.wheel-item.active {
+  color: #00d4ff;
+  border-color: #00d4ff;
+  background: rgba(0, 200, 255, 0.15);
+  box-shadow: 0 0 20px rgba(0, 200, 255, 0.5);
+  transform: scale(1.1);
+}
+
+/* 滚轮中间指示器（高亮框） */
+.wheel-indicator {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 60px;
+  border: 2px solid rgba(0, 200, 255, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0, 200, 255, 0.3);
+  pointer-events: none;
+}
+
+.left-wheel .wheel-indicator, .right-wheel .wheel-indicator {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 80px;
+}
+
+.middle-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 90%;
+  height: 60vh;
+}
+
+.center-display {
+  flex: 1;
+  height: 100%;
+  background: rgba(10, 10, 30, 0.8);
+  border-radius: 20px;
+  border: 1px solid rgba(150, 0, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-shadow: 0 0 40px rgba(150, 0, 255, 0.2);
+}
+
+.glow-text {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(150, 0, 255, 0.8);
+  margin-bottom: 20px;
+}
+
+.info-card {
+  width: 100%;
+  max-width: 300px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(0, 200, 255, 0.2);
+}
+
+.info-card p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 10px 0;
+  font-size: 16px;
+}
+</style>

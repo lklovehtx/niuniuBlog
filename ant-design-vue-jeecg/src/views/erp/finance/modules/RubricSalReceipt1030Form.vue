@@ -1,0 +1,442 @@
+<template>
+  <a-spin :spinning="confirmLoading">
+    <!-- 主表单区域 -->
+    <div>
+      <a-form-model ref="form" :model="model" :rules="validatorRules">
+        <bill-header ref="billHeader" :model="model" :disabled="disabled" :moreStatus.sync="moreStatus" :moreStatus2.sync="moreStatus2"/>
+
+          <a-row>
+            <a-col :xl="8" :lg="12" :md="24">
+              <a-form-model-item label="客户" :labelCol="labelCol3" :wrapperCol="wrapperCol3" prop="customerId">
+                <a-tooltip :title="!disabled && entryTable.rowCount>0 ? '有明细时不能改变！' : ''" placement="bottom">
+                  <j-search-select-tag v-model="model.customerId" dict="bas_customer,aux_name,id" :disabled="disabled || entryTable.rowCount>0"/>
+                </a-tooltip>
+              </a-form-model-item>
+            </a-col>
+            <a-col :xl="8" :lg="12" :md="24" v-show="action==='detail'">
+              <a-form-model-item label="已核销金额" :labelCol="labelCol3" :wrapperCol="wrapperCol3" prop="checkedAmt">
+                <a-input-number v-model="model.checkedAmt" :disabled="true"
+                  :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                  :parser="value => value.replace(/\$\s?|(,*)/g, '')"
+                  :precision="2" style="width: 100%"/>
+              </a-form-model-item>
+            </a-col>
+          </a-row>
+
+        <a-row>
+          <a-col :xl="8" :lg="12" :md="24" v-show="moreStatus2 || !!model.subject && model.subject.length > 0">
+            <a-form-model-item label="单据主题" :labelCol="labelCol3" :wrapperCol="wrapperCol3" prop="subject">
+              <a-input v-model="model.subject" placeholder="请输入" :readOnly="disabled"/>
+            </a-form-model-item>
+          </a-col>
+          <a-col :xl="8" :lg="12" :md="24" v-show="moreStatus2 || !!model.remark && model.remark.length > 0">
+            <a-form-model-item label="备注" :labelCol="labelCol3" :wrapperCol="wrapperCol3" prop="remark">
+              <a-textarea v-model="model.remark" :readOnly="disabled" rows="1" autoSize/>
+            </a-form-model-item>
+          </a-col>
+          <a-col :xl="8" :lg="12" :md="24" v-show="moreStatus2 || !!model.attachment && model.attachment.length > 0">
+            <a-form-model-item label="附件" :labelCol="labelCol3" :wrapperCol="wrapperCol3" prop="attachment">
+              <j-upload v-model="model.attachment" :disabled="disabled" bizPath="erp"/>
+            </a-form-model-item>
+          </a-col>
+        </a-row>
+
+        <!-- 子表单区域 -->
+        <a-tabs v-model="activeKey" @change="handleChangeTabs">
+          <!--20251101 cfm modi for 内置BPM：各源单tab增加 v-if... -->
+          <a-tab-pane v-if="srcVisible" tab="退货入库单" key="srcTable" :forceRender="true">
+            <j-vxe-table
+              keep-source
+              ref="srcTable"
+              :loading="srcTable.loading"
+              :columns="srcTable.columns"
+              :dataSource="srcTable.dataSource"
+              :maxHeight="300"
+              :rowNumber="false"
+              :rowSelection="false"
+              :toolbar="false"
+              :resizable="true"
+              :edit-config="{enabled: false, showIcon: false}"/>
+          </a-tab-pane>
+
+          <a-tab-pane tab="明细" key="entryTable" :forceRender="true">
+            <j-vxe-table
+              keep-source
+              ref="entryTable"
+              :loading="entryTable.loading"
+              :columns="entryTable.columns"
+              :dataSource="entryTable.dataSource"
+              :maxHeight="300"
+              :disabled="disabled"
+              :rowNumber="false"
+              :rowSelection="!disabled"
+              :toolbar="!disabled"
+              :resizable="true"
+              :toolbar-config="{slots: ['prefix', 'suffix'], btn: ['remove', 'clearSelection']}"
+              :edit-config="{trigger: 'click', mode: 'row', showIcon: false}"
+              @added="event => {this.entryTable.rowCount++; this.onEntryAdded(event);}"
+              @selectRowChange="({selectedRows}) => this.entryTable.selectedRowCount = selectedRows.length"
+              @remove="event => {this.entryTable.rowCount = this.$refs.entryTable.getTableData().length; this.removeFreeSrcBills();}"
+            >
+              <template v-if="!disabled" v-slot:toolbarPrefix>
+                <a-tooltip :title="!model.customerId || model.customerId.length===0 ? '请先选择客户！':'客户是弹窗查询参数'" placement="bottom">
+                  <a-button @click="$refs.outPopup.openModal()" icon="plus" type="primary"
+                            :disabled="!model.customerId || model.customerId.length===0>0">退货入库单</a-button>
+                </a-tooltip>
+                <a-tooltip v-if="!isMobile()" :title="entryTable.selectedRowCount!==1 ? '请选择一行明细!':''" placement="bottom">
+                  <a-button @click="handleCopyAndAdd" icon="plus" :disabled="entryTable.selectedRowCount!==1">复制新增</a-button>
+                </a-tooltip>
+
+                <j-popup v-show="false" ref="outPopup" code="stk_out_bill" :param="outPopupParam"
+                         org-fields="id" dest-fields="id" :multi="true" @input="onOutPopupInput"/>
+              </template>
+            </j-vxe-table>
+          </a-tab-pane>
+
+          <template slot="tabBarExtraContent">
+            <vxe-table-columns-setter v-show="activeKey==='entryTable'"
+              :table-key="activeKey + (disabled ? '1':'0')"
+              :column-defs="entryTable.columns"
+              style="float: right;"/>
+          </template>
+        </a-tabs>
+
+        <bill-approval v-if="action==='check' || action==='ebpm'" :model="model" :disabled="disabled" style="margin-top: 16px"/>
+      </a-form-model>
+    </div>
+
+  </a-spin>
+</template>
+
+<script>
+  import {JVXETypes} from '@/components/jeecg/JVxeTable'
+  import {getRefPromise} from '@/components/jeecg/JVxeTable/utils/vxeUtils.js'
+  import {JVxeTableModelMixin} from '@/mixins/JVxeTableModelMixin'
+  import {BillFormMixin} from '../../common/mixins/bill/BillFormMixin'
+  import {BillFormGridMixin} from '../../common/mixins/bill/BillFormGridMixin'
+  import {DetailMixin} from '../../common/mixins/bill/DetailMixin'
+  import {DetailValueMixin} from '../../common/mixins/bill/DetailValueMixin'
+  import {DetailFormatMixin} from '../../common/mixins/bill/DetailFormatMixin'
+  import {DetailValidatorMixin} from '../../common/mixins/bill/DetailValidatorMixin'
+  import {DataMixin} from '../../common/mixins/DataMixin'
+  import {mixinDevice} from '@/utils/mixin'
+  import BillHeader from "../../common/components/BillHeader"
+  import BillApproval from "../../common/components/BillApproval"
+  import VxeTableColumnsSetter from "../../common/components/VxeTableColumnsSetter"
+  import pick from "lodash.pick";
+  import XEUtils from "xe-utils";
+  import {stringIsEmpty} from "../../../erp/common/utils/util";
+
+  export default {
+    name: 'RubricSalReceipt1031Modal',
+    mixins: [JVxeTableModelMixin, BillFormMixin, BillFormGridMixin, DetailMixin, DetailValueMixin, DetailFormatMixin, DetailValidatorMixin, DataMixin, mixinDevice],
+    components: {BillHeader, BillApproval, VxeTableColumnsSetter},
+
+    data() {
+      return {
+        model: {//设置初始值的属性、程序赋值的响应式属性
+          billNo:'',
+          billDate: new Date().format('yyyy-MM-dd'),
+          isAuto: 0,
+          isRubric: 1,
+          srcBillType: '',
+          srcBillId: '',
+          srcNo: '',
+          receiptType: '1030', //退货退款（无申请）
+          amt: 0,
+          checkedAmt: 0,
+        },
+
+        validatorRules: {
+          customerId: [{required: true, message: '请输入客户!'}],
+        },
+
+        entryNoStep: 10,
+        addDefaultRowNum: 0,
+        refKeys:  ['entryTable'],
+        tableKeys:['entryTable'],
+        activeKey: 'entryTable',
+
+        // 明细
+        entryTable: {
+          loading: false,
+          rowCount: 0,
+          selectedRowCount: 0,
+          dataSource: [],
+          url: {list: '/finance/finReceipt/queryEntryByMainId'},
+          columns: [
+            {
+              title: '#',
+              key: 'entryNo',
+              type: JVXETypes.inputNumber,
+              width:"70px",
+              align:"center",
+              fixed: 'left',
+              sortable: true,
+              placeholder: '请输入',
+              defaultValue:'',
+              validateRules: [
+                { required: true, message: '${title}不能为空' },
+                { pattern: /^[1-9]\d*$/, message: '${title}须为正整数' },
+                { unique: true, message: '${title}不能重复' },
+              ],
+            },
+            {
+              title: '源单号',
+              key: 'srcNo',
+              type: JVXETypes.input,
+              width:"180px",
+              defaultValue: '',
+              disabled: true,
+            },
+            {
+              title: '结算方式',
+              key: 'settleMethod',
+              type: JVXETypes.select,
+              dictCode:"x_settle_method",
+              width:"150px",
+              align:"center",
+              defaultValue: '',
+              options:[],
+            },
+            {
+              title: '资金账户',
+              key: 'bankAccountId',
+              type: JVXETypes.select,
+              dictCode:"bas_bank_account,account_no,id",
+              width:"260px",
+              defaultValue: '',
+              options:[],
+            },
+            {
+              title: '金额',
+              key: 'amt',
+              type: JVXETypes.inputNumber,
+              width:"120px",
+              align:"right",
+              formatter: this.formatAmt,
+              placeholder: '请输入',
+              defaultValue: '',
+              validateRules: [{ required: true, message: '${title}不能为空' }, {handler: this.rubricValidator}, {handler: this.amtValidator}],
+              statistics: ['sum'],
+            },
+            {
+              title: '备注',
+              key: 'remark',
+              type: JVXETypes.input,
+              width:"100px",
+              defaultValue: '',
+            },
+            {
+              title: '自定义1',
+              key: 'custom1',
+              type: JVXETypes.input,
+              width:"80px",
+              defaultValue: '',
+            },
+            {
+              title: '自定义2',
+              key: 'custom2',
+              type: JVXETypes.input,
+              width:"80px",
+              defaultValue: '',
+            },
+          ]
+        },
+
+        // 源单：（红字）销售出库单
+        srcTable: {
+          loading: false,
+          dataSource: [],
+          url: {list: '/stock/stkIo/listByIds'},
+          columns: [
+            {
+              title: '单据编号',
+              key: 'billNo',
+              type: JVXETypes.input,
+              width:"160px",
+              align:"center",
+              fixed: 'left',
+              sortable: true,
+            },
+            {
+              title: '单据日期',
+              key: 'billDate',
+              type: JVXETypes.date,
+              width:"100px",
+              align:"center",
+              sortable: true,
+            },
+            {
+              title: '源单号',
+              key: 'srcNo',
+              type: JVXETypes.input,
+              width:"160px",
+              align:"center",
+              sortable: true,
+            },
+            {
+              title: '库管员',
+              key: 'handler',
+              type: JVXETypes.select,
+              dictCode:"sys_user,realname,username",
+              width:"100px",
+              align:"center",
+              sortable: true,
+            },
+            {
+              title: '结算金额',
+              key: 'settleAmt',
+              type: JVXETypes.inputNumber,
+              width:"120px",
+              align:"right",
+              formatter: this.formatAmt,
+              defaultValue:'',
+              statistics: ['sum'],
+            },
+            {
+              title: '已结算金额',
+              key: 'settledAmt',
+              type: JVXETypes.inputNumber,
+              width:"120px",
+              align:"right",
+              formatter: this.formatAmt,
+              defaultValue:'',
+              statistics: ['sum'],
+            },
+            {
+              title: '单据主题',
+              key: 'subject',
+              type: JVXETypes.input,
+              width:"200px",
+              defaultValue:'',
+              sortable: true,
+            },
+            {
+              title: '备注',
+              key: 'remark',
+              type: JVXETypes.input,
+              width:"160px",
+              defaultValue:'',
+            },
+          ]
+        },
+
+        url: {
+          add: "/finance/finReceipt/add",
+          edit: "/finance/finReceipt/edit",
+          check: "/finance/finReceipt/check",
+          ebpm: "/finance/finReceipt/bpm/end",
+          execute: "/finance/finReceipt/execute",
+          void: "/finance/finReceipt/void",
+          queryById: "/finance/finReceipt/queryById", //20251101 cfm add for 内置BPM
+        },
+      }
+    },
+
+    watch:{
+      'entryTable.dataSource'() {
+        this.entryTable.rowCount = this.entryTable.dataSource.length;
+      },
+
+      'entryTable.loading': {
+        immediate: true,
+        handler() {
+          this.$emit("update:loading", this.entryTable.loading);
+        }
+      },
+
+      'entryTable.rowCount': {
+        immediate: true,
+        handler() {
+          this.$emit("update:entryCount", this.entryTable.rowCount);
+        }
+      }
+    },
+
+    computed: {
+      outPopupParam() {
+        const v = {stock_io_type: '2011', is_closed: 0};
+        v.customer_id = this.model.customerId;
+        return v;
+      },
+    },
+
+    methods: {
+      addBefore(){
+        this.entryTable.dataSource=[];
+      },
+
+      addAfter() {
+        this.$refs.billHeader.fillBillNo('fin_xsthtk_bill_no');
+      },
+
+      getAllTable() {
+        let values = this.tableKeys.map(key => getRefPromise(this, key))
+        return Promise.all(values)
+      },
+
+      editAfter() {
+        if (this.model.id) this.requestSubDatas(this.entryTable, this.srcTable);
+      },
+
+      classifyIntoFormData(allValues) {
+        let main = Object.assign(this.model, allValues.formValue)
+        return {
+          ...main, // 展开
+          finReceiptEntryList: allValues.tablesValue[0].tableData,
+        }
+      },
+
+      onOutPopupInput(val, row) {
+        if(stringIsEmpty(row.id)) return;
+        const that = this;
+        this.requestSrcDeltas(row.id, this.srcTable, null, success);
+
+        function success(deltas) {
+          const jxTable = that.$refs.entryTable;
+          let entries = jxTable.getTableData();
+          for (let srcBill of deltas.srcBills) {
+            if (!entries.find(e => e.srcBillId === srcBill.id))
+              jxTable.addRows({srcBillType: srcBill.billType, srcBillId: srcBill.id, srcNo: srcBill.billNo,
+                amt: srcBill.settleAmt-srcBill.settledAmt}).then(
+                ({row}) => jxTable.$refs.vxe.$refs.xTable.setActiveCell(row, 'amt'));
+          }
+        }
+      },
+
+      handleCopyAndAdd() {
+        let jxTable = this.$refs.entryTable;
+        if (jxTable.selectedRows.length !== 1) {
+          this.$message.warning('请选择一行明细');
+          return;
+        }
+        let row = pick(jxTable.selectedRows[0], 'srcBillType','srcBillId','srcNo','remark','custom1','custom2');
+        jxTable.addRows(row);
+      },
+
+      amtValidator({cellValue, row, column}, callback, target) {
+        let v = Number(cellValue);
+        if (isNaN(v) || stringIsEmpty(row.srcBillId)) {
+          callback();
+          return;
+        }
+
+        let rows = target.getTableData().filter(r => r.srcBillId === row.srcBillId);
+        v =  XEUtils.sum(rows, 'amt');
+        let row1 = this.$refs.srcTable.getTableData().find(r => r.id === row.srcBillId);
+        if (v < row1.settleAmt - row1.settledAmt) {
+          callback(false, '${title}不能超出未收金额');
+        } else {
+          callback(true); //true：通过验证
+        }
+      },
+
+    }
+
+  }
+</script>
+
+<style lang="less" scoped>
+  @import "../../common/less/BillForm.less";
+</style>
