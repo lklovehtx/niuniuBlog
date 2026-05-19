@@ -157,9 +157,7 @@ export default {
           }
           this.total = data.total || this.articleList.length
           this.articleList.forEach(article => {
-            if (article.authorAvatar && !article.authorAvatar.startsWith('http')) {
-              article.authorAvatar = 'http://localhost:8080/jeecg-boot/avatar/' + article.authorAvatar
-            }
+            article.authorAvatar = getAvatarUrl(article.authorAvatar)
           })
         }
       } catch (error) {

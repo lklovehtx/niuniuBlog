@@ -309,31 +309,14 @@ export default {
     },
     async loadComments() {
       try {
-        // 调用后端 API 获取评论列表
         const response = await getCommentList(this.$route.params.id);
         if (response.success) {
           this.commentList = response.result;
-          // 处理评论者头像URL
           this.commentList.forEach((comment) => {
-            if (
-              comment.commentatorAvatar &&
-              !comment.commentatorAvatar.startsWith("http")
-            ) {
-              comment.commentatorAvatar =
-                "http://localhost:8080/jeecg-boot/avatar/" +
-                comment.commentatorAvatar;
-            }
-            // 处理回复头像
+            comment.commentatorAvatar = getAvatarUrl(comment.commentatorAvatar);
             if (comment.replies && comment.replies.length) {
               comment.replies.forEach((reply) => {
-                if (
-                  reply.commentatorAvatar &&
-                  !reply.commentatorAvatar.startsWith("http")
-                ) {
-                  reply.commentatorAvatar =
-                    "http://localhost:8080/jeecg-boot/avatar/" +
-                    reply.commentatorAvatar;
-                }
+                reply.commentatorAvatar = getAvatarUrl(reply.commentatorAvatar);
               });
             }
           });
@@ -450,13 +433,12 @@ export default {
       if (!comment.replyContent.trim()) return;
 
       try {
-        // 模拟添加回复
         const newReply = {
           id: Date.now().toString(),
           content: comment.replyContent,
           commentatorId: this.userId,
           commentatorName: this.nickname,
-          commentatorAvatar: this.avatar,
+          commentatorAvatar: getAvatarUrl(this.avatar),
           createTime: new Date().toISOString(),
           replyToId: comment.commentatorId,
           replyToName: comment.commentatorName,
