@@ -399,21 +399,19 @@ export default {
 
       this.submitting = true;
       try {
-        // 创建新评论对象
         const commentData = {
           articleId: this.$route.params.id,
           content: this.newComment,
         };
 
-        // 调用后端 API 添加评论
         const response = await addComment(commentData);
         if (response.success) {
           const newComment = response.result;
           newComment.showReplyInput = false;
           newComment.replyContent = "";
           newComment.replies = [];
+          newComment.commentatorAvatar = getAvatarUrl(newComment.commentatorAvatar);
 
-          // 更新本地列表
           this.commentList.unshift(newComment);
           this.$message.success("评论成功");
           this.newComment = "";
