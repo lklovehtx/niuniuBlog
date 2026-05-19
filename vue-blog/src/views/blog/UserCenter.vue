@@ -9,7 +9,7 @@
           </a-button>
           <a-dropdown>
             <div class="user-avatar">
-              <a-avatar :src="avatar" />
+              <a-avatar :src="getAvatarUrl(avatar)" />
               <span class="username">{{ nickname }}</span>
             </div>
             <a-menu slot="overlay">
