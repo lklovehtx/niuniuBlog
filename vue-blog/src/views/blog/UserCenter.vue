@@ -237,9 +237,8 @@ export default {
     },
     async handleAvatarUpload(file) {
       try {
-        const response = await uploadAvatar(file);
+        const response = await uploadAvatar(file, this.userId);
         if (response.success) {
-          // 只保存相对路径，不保存完整 URL
           this.form.avatar = response.result.path;
         } else {
           this.$message.error("头像上传失败");

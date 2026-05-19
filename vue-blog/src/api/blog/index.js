@@ -38,9 +38,10 @@ export function getUserStats(id) {
   })
 }
 
-export function uploadAvatar(file) {
+export function uploadAvatar(file, userId) {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('userId', userId)
   return request({
     url: '/psi/blog/user/avatar/upload',
     method: 'post',
